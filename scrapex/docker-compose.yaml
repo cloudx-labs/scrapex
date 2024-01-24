@@ -1,0 +1,11 @@
+version: "3"
+services:
+  app:
+    container_name: scrapex
+    build: .
+    environment:
+      - TZ=America/Argentina/Buenos_Aires
+      - PORT=3000
+      - LOG_LEVEL=debug
+    ports:
+      - "3003:3000"
