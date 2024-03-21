@@ -38,7 +38,7 @@ version: "3"
 services:
     app:
         container_name: scrapex
-        image: ghcr.io/cloudx-labs/scrapex:main # it's better to pin down to a specific release version such as v0.1
+        image: ghcr.io/cloudx-labs/scrapex:latest # it's better to pin down to a specific release version such as v0.1
         environment:
             - TZ=America/Argentina/Buenos_Aires
             - PORT=3000
