@@ -1,5 +1,5 @@
 #FROM node:20-alpine
-FROM mcr.microsoft.com/playwright:v1.42.1-jammy
+FROM mcr.microsoft.com/playwright:v1.44.0-jammy
 
 ENV NODE_ENV=production
 

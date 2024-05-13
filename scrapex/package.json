@@ -11,12 +11,12 @@
 	"license": "MIT",
 	"dependencies": {
 		"dotenv": "^16.4.5",
-		"express": "^4.18.3",
+		"express": "^4.19.2",
 		"express-winston": "^4.2.0",
 		"html-to-md": "^0.8.5",
 		"http-terminator": "^3.2.0",
-		"playwright": "1.42.1",
-		"short-uuid": "^4.2.2",
+		"playwright": "1.44.0",
+		"short-uuid": "^5.2.0",
 		"tempfile": "^5.0.0"
 	}
 }
