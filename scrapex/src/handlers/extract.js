@@ -65,6 +65,7 @@ async function loadPage({ context, url, wait }) {
 async function buildResponse({ page, response }, { contentType, content }) {
 	return {
 		source: {
+			ok: response.ok(),
 			status: response.status(),
 			url: page.url(),
 			headers: await response.headers(),
