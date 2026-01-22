@@ -17,6 +17,7 @@ Scrapex supports the following output formats:
 1. _HTML_: Direct extraction of HTML content.
 2. _Markdown_: Conversion of HTML to Markdown using `html-to-md`.
 3. _PDF_: Generation of PDF documents utilizing Playwright's PDF functionality.
+4. _Screenshot_: Full-page screenshot generation utilizing Playwright's screenshot functionality.
 
 ### Environment Variables
 
@@ -75,7 +76,7 @@ The following table describes the parameters included in the payload of the `cur
 | Parameter | Description | Example |
 |--------------|-------------------------------------------|---------------------------------------------------|
 | url | URL of the page to scrape | https://en.wikipedia.org/wiki/Six_Degrees_of_Kevin_Bacon |
-| outputType | Desired output format | html / md / pdf |
+| outputType | Desired output format | html / md / pdf / screenshot |
 | wait | Milliseconds to wait before extraction | 2000 |
 | userAgent | User agent to use for the request | Mozilla/5.0 (Windows NT 10.0; Win64; x64)... |
 | settings | Additional settings for output formatting | { "pdf": { "options": { "format": "A4" } } } |
@@ -89,3 +90,7 @@ All available values for `settings -> pdf -> options` can be found at: https://p
 #### Markdown (MD)
 
 All available values for `setting -> md -> options` can be found at: https://github.com/stonehank/html-to-md/blob/master/README-EN.md
+
+#### Screenshot
+
+All available values for `settings -> screenshot -> options` can be found at: https://playwright.dev/docs/api/class-page#page-screenshot

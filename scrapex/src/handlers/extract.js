@@ -7,6 +7,7 @@ const extractionHandlers = new Map([
 	["html", extractHtml],
 	["md", extractMarkdown],
 	["pdf", extractPdf],
+	["screenshot", extractScreenshot],
 ]);
 
 const DEFAULT_WAIT = process.env.DEFAULT_WAIT || 0;
@@ -17,7 +18,7 @@ const DEFAULT_USER_AGENT =
 export default async function handle(req, res) {
 	const params = req.body;
 	const url = decodeURIComponent(params.url);
-	const outputType = params.outputType; // type = "html", "md", "pdf"
+	const outputType = params.outputType; // type = "html", "md", "pdf", "screenshot"
 	const wait = params.wait || DEFAULT_WAIT;
 	const userAgent = params.userAgent || DEFAULT_USER_AGENT;
 
@@ -128,6 +129,37 @@ async function extractPdf({ context, url, wait, params }) {
 	const buffer = await TimeUtils.profile("Creating PDF", () => result.page.pdf(pdfOptions));
 	return buildResponse(result, {
 		contentType: "application/pdf",
+		content: buffer.toString("base64"),
+	});
+}
+
+async function extractScreenshot({ context, url, wait, params }) {
+	const result = await loadPage({
+		context,
+		url,
+		wait,
+	});
+
+	const screenshotOptions = params.settings?.screenshot?.options || {};
+	if (screenshotOptions.path) delete screenshotOptions.path;
+
+	// Playwright expects `quality` only for jpeg; if caller sets it without `type`, default to jpeg.
+	if (screenshotOptions.quality && !screenshotOptions.type) {
+		screenshotOptions.type = "jpeg";
+	}
+
+	const mergedOptions = {
+		fullPage: true, // full-page screenshot by default
+		...screenshotOptions,
+	};
+
+	log.debug(`Screenshot options: ${JSON.stringify(mergedOptions)}`);
+
+	const buffer = await TimeUtils.profile("Creating Screenshot", () => result.page.screenshot(mergedOptions));
+	const contentType = mergedOptions.type === "jpeg" ? "image/jpeg" : "image/png";
+
+	return buildResponse(result, {
+		contentType,
 		content: buffer.toString("base64"),
 	});
 }
