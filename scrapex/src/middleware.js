@@ -4,6 +4,9 @@ import { log, express as expressLogger } from "./logger.js";
 export function configure(app) {
 	app.use(express.json());
 	app.use(expressLogger);
+}
+
+export function configureErrorHandler(app) {
 	app.use((err, _req, res, next) => {
 		log.error(err);
 		if (res.headersSent) {

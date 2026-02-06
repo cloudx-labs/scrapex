@@ -17,6 +17,9 @@ await Middleware.configure(app);
 // configure api routes
 await Routes.configure(app);
 
+// register error-handling middleware after routes so it catches route errors
+Middleware.configureErrorHandler(app);
+
 // launch the shared browser instance before accepting requests
 await getBrowser();
 
