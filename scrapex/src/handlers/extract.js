@@ -101,19 +101,11 @@ async function extractMarkdown({ context, url, wait }) {
 
 	const htmlContent = await result.page.content();
 
-	let markdownContent;
-	try {
-		markdownContent = await TimeUtils.profile("Converting to MD", () => {
-			const service = new TurndownService();
-			service.remove(JUNK_TAGS);
-			return service.turndown(htmlContent);
-		});
-	} catch (err) {
-		log.warn("Markdown conversion failed", { error: err.message });
-		throw new Error(
-			`Page HTML could not be parsed or converted to markdown (invalid or malformed HTML). ${err.message}`
-		);
-	}
+	const markdownContent = await TimeUtils.profile("Converting to MD", () => {
+		const service = new TurndownService();
+		service.remove(JUNK_TAGS);
+		return service.turndown(htmlContent);
+	});
 
 	return await buildResponse(result, {
 		contentType: "text/markdown",
