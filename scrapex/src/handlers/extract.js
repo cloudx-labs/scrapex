@@ -182,19 +182,34 @@ async function extractScreenshot({ context, url, wait, params }) {
 }
 
 let browserInstance = null;
+let browserLaunchPromise = null;
 
 export async function getBrowser() {
-	if (!browserInstance) {
-		browserInstance = await TimeUtils.profile("Launching Browser", () =>
+	if (browserInstance) return browserInstance;
+
+	if (!browserLaunchPromise) {
+		browserLaunchPromise = TimeUtils.profile("Launching Browser", () =>
 			chromium.launch({
 				headless: true,
 			})
-		);
-		browserInstance.on("disconnected", () => {
-			browserInstance = null;
-		});
+		)
+			.then((browser) => {
+				browserInstance = browser;
+				browser.on("disconnected", () => {
+					if (browserInstance === browser) {
+						browserInstance = null;
+						browserLaunchPromise = null;
+					}
+				});
+				return browser;
+			})
+			.catch((err) => {
+				browserLaunchPromise = null;
+				throw err;
+			});
 	}
-	return browserInstance;
+
+	return browserLaunchPromise;
 }
 
 async function getNewContext(browser, userAgent) {
@@ -217,5 +232,6 @@ export async function shutdownBrowser() {
 		log.info("Closing shared browser instance");
 		await browserInstance.close();
 		browserInstance = null;
+		browserLaunchPromise = null;
 	}
 }
