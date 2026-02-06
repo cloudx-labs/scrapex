@@ -1,7 +1,7 @@
 import express from "express";
 import { createHttpTerminator } from "http-terminator";
 import { log } from "./logger.js";
-import * as Middlware from "./middleware.js";
+import * as Middleware from "./middleware.js";
 import * as Routes from "./routes.js";
 
 // create an instance of express
@@ -11,7 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // set up all middlewares
-await Middlware.configure(app);
+await Middleware.configure(app);
 
 // configure api routes
 await Routes.configure(app);
@@ -25,7 +25,7 @@ const server = app.listen(PORT, () => {
 const httpTerminator = createHttpTerminator({ server });
 
 process.on("uncaughtException", function (err) {
-	log.error("UNCAUGHT EXCEPTION - keeping process alive:", err);
+	log.error("UNCAUGHT EXCEPTION:", err);
 });
 
 // Graceful shutdown

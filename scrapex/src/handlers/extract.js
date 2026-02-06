@@ -16,22 +16,32 @@ const DEFAULT_USER_AGENT =
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 export default async function handle(req, res) {
-	const params = req.body;
-	const url = decodeURIComponent(params.url);
-	const outputType = params.outputType; // type = "html", "md", "pdf", "screenshot"
-	const wait = params.wait || DEFAULT_WAIT;
+	const params = req.body ?? {};
+	const url = params.url != null ? decodeURIComponent(String(params.url)) : null;
+	const outputType = params.outputType;
+	const wait = Number(params.wait) || DEFAULT_WAIT;
 	const userAgent = params.userAgent || DEFAULT_USER_AGENT;
+
+	if (!url) {
+		res.status(400).json({ message: "Missing or invalid url" });
+		return;
+	}
+	if (!extractionHandlers.has(outputType)) {
+		res.status(400).json({
+			message: outputType != null ? `Unknown type "${outputType}"` : "Missing outputType",
+		});
+		return;
+	}
 
 	log.info(`Extracting "${outputType}" from "${url}"`);
 	log.debug(JSON.stringify(params));
 
-	const browser = await getBrowser();
-	const context = await getNewContext(browser, userAgent);
-
+	let browser;
+	let context;
 	try {
-		if (!extractionHandlers.has(outputType)) {
-			throw new Error(`Unknown type "${outputType}"`);
-		}
+		browser = await getBrowser();
+		context = await getNewContext(browser, userAgent);
+
 		const parameters = {
 			context,
 			url,
@@ -120,10 +130,8 @@ async function extractPdf({ context, url, wait, params }) {
 		wait,
 	});
 	result.page.emulateMedia({ media: "print" });
-	const pdfOptions = params.settings?.pdf?.options || {
-		format: "Letter",
-	};
-	if (pdfOptions.path) delete pdfOptions.path;
+	const pdfOptions = { ...(params.settings?.pdf?.options || { format: "Letter" }) };
+	delete pdfOptions.path;
 
 	log.debug(`PDF options: ${JSON.stringify(pdfOptions)}`);
 
@@ -141,8 +149,8 @@ async function extractScreenshot({ context, url, wait, params }) {
 		wait,
 	});
 
-	const screenshotOptions = params.settings?.screenshot?.options || {};
-	if (screenshotOptions.path) delete screenshotOptions.path;
+	const screenshotOptions = { ...(params.settings?.screenshot?.options || {}) };
+	delete screenshotOptions.path;
 
 	// Playwright expects `quality` only for jpeg; if caller sets it without `type`, default to jpeg.
 	if (screenshotOptions.quality && !screenshotOptions.type) {
@@ -185,7 +193,7 @@ async function getNewContext(browser, userAgent) {
 
 async function tearDown(browser, context) {
 	await TimeUtils.profile("Closing Context and Browser", async () => {
-		await context.close();
-		await browser.close();
+		if (context) await context.close();
+		if (browser) await browser.close();
 	});
 }

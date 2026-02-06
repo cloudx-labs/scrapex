@@ -5,11 +5,7 @@ export function configure(app) {
 	app.use(express.json());
 	app.use(expressLogger);
 	app.use((err, req, res, next) => {
-		if (err) {
-			log.error(err);
-			res.status(500).send(err.message);
-		} else {
-			next();
-		}
+		log.error(err);
+		res.status(500).send(err.message);
 	});
 }
