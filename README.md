@@ -35,7 +35,6 @@ Configure Scrapex using the following environment variables:
 The simplest way to run Scrapex is using Docker. Here's an example `docker-compose.yaml`:
 
 ```yaml
-version: "3"
 services:
     app:
         container_name: scrapex
