@@ -181,13 +181,20 @@ async function extractScreenshot({ context, url, wait, params }) {
 	});
 }
 
-async function getBrowser() {
-	const browser = await TimeUtils.profile("Opening Browser", () =>
-		chromium.launch({
-			headless: true,
-		})
-	);
-	return browser;
+let browserInstance = null;
+
+export async function getBrowser() {
+	if (!browserInstance) {
+		browserInstance = await TimeUtils.profile("Launching Browser", () =>
+			chromium.launch({
+				headless: true,
+			})
+		);
+		browserInstance.on("disconnected", () => {
+			browserInstance = null;
+		});
+	}
+	return browserInstance;
 }
 
 async function getNewContext(browser, userAgent) {
@@ -199,9 +206,16 @@ async function getNewContext(browser, userAgent) {
 	return context;
 }
 
-async function tearDown(browser, context) {
-	await TimeUtils.profile("Closing Context and Browser", async () => {
+async function tearDown(_browser, context) {
+	await TimeUtils.profile("Closing Context", async () => {
 		if (context) await context.close();
-		if (browser) await browser.close();
 	});
+}
+
+export async function shutdownBrowser() {
+	if (browserInstance) {
+		log.info("Closing shared browser instance");
+		await browserInstance.close();
+		browserInstance = null;
+	}
 }

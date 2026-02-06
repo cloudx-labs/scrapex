@@ -3,6 +3,7 @@ import { createHttpTerminator } from "http-terminator";
 import { log } from "./logger.js";
 import * as Middleware from "./middleware.js";
 import * as Routes from "./routes.js";
+import { getBrowser, shutdownBrowser } from "./handlers/extract.js";
 
 // create an instance of express
 const app = express();
@@ -15,6 +16,9 @@ await Middleware.configure(app);
 
 // configure api routes
 await Routes.configure(app);
+
+// launch the shared browser instance before accepting requests
+await getBrowser();
 
 // start the server
 const server = app.listen(PORT, () => {
@@ -29,10 +33,13 @@ process.on("uncaughtException", function (err) {
 });
 
 // Graceful shutdown
-process.on("SIGTERM", async () => {
-	log.info("Stopping Application");
-	await httpTerminator.terminate();
+for (const signal of ["SIGTERM", "SIGINT"]) {
+	process.on(signal, async () => {
+		log.info(`Received ${signal} – Stopping Application`);
+		await httpTerminator.terminate();
+		await shutdownBrowser();
 
-	log.info("Exiting");
-	process.exit(0);
-});
+		log.info("Exiting");
+		process.exit(0);
+	});
+}
