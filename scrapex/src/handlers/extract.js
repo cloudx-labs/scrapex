@@ -1,7 +1,7 @@
 import { log } from "../logger.js";
 import * as TimeUtils from "../timeUtils.js";
 import { chromium } from "playwright";
-import html2md from "html-to-md";
+import TurndownService from "turndown";
 
 const extractionHandlers = new Map([
 	["html", extractHtml],
@@ -90,7 +90,9 @@ async function extractHtml({ context, url, wait }) {
 	});
 }
 
-async function extractMarkdown({ context, url, wait, params }) {
+const JUNK_TAGS = ["script", "style", "noscript", "template"];
+
+async function extractMarkdown({ context, url, wait }) {
 	const result = await loadPage({
 		context,
 		url,
@@ -99,12 +101,19 @@ async function extractMarkdown({ context, url, wait, params }) {
 
 	const htmlContent = await result.page.content();
 
-	const mdOptions = params.settings?.md?.options || {};
-	if (mdOptions.tagListener) delete mdOptions.tagListener;
-
-	log.debug(`MD options: ${JSON.stringify(mdOptions)}`);
-
-	const markdownContent = await TimeUtils.profile("Converting to MD", () => html2md(htmlContent, mdOptions));
+	let markdownContent;
+	try {
+		markdownContent = await TimeUtils.profile("Converting to MD", () => {
+			const service = new TurndownService();
+			service.remove(JUNK_TAGS);
+			return service.turndown(htmlContent);
+		});
+	} catch (err) {
+		log.warn("Markdown conversion failed", { error: err.message });
+		throw new Error(
+			`Page HTML could not be parsed or converted to markdown (invalid or malformed HTML). ${err.message}`
+		);
+	}
 
 	return await buildResponse(result, {
 		contentType: "text/markdown",
