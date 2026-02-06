@@ -228,6 +228,14 @@ async function tearDown(_browser, context) {
 }
 
 export async function shutdownBrowser() {
+	if (browserLaunchPromise && !browserInstance) {
+		log.info("Browser launch in progress – waiting before shutdown");
+		try {
+			await browserLaunchPromise;
+		} catch {
+			// launch failed; nothing to close
+		}
+	}
 	if (browserInstance) {
 		log.info("Closing shared browser instance");
 		await browserInstance.close();

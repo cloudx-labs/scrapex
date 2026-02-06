@@ -21,7 +21,12 @@ await Routes.configure(app);
 Middleware.configureErrorHandler(app);
 
 // launch the shared browser instance before accepting requests
-await getBrowser();
+try {
+	await getBrowser();
+} catch (err) {
+	log.error("Fatal: failed to launch browser", err);
+	process.exit(1);
+}
 
 // start the server
 const server = app.listen(PORT, () => {
