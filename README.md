@@ -15,7 +15,7 @@ Scrapex is a versatile scraping component designed to efficiently extract conten
 Scrapex supports the following output formats:
 
 1. _HTML_: Direct extraction of HTML content.
-2. _Markdown_: Full-page HTML is converted to Markdown using [Turndown](https://github.com/mixmark-io/turndown). Script, style, noscript and template attributes are removed via Turndown’s `remove()` before conversion.
+2. _Markdown_: Full-page HTML is converted to Markdown using [Turndown](https://github.com/mixmark-io/turndown). Script, style, noscript and template tags are removed via Turndown’s `remove()` before conversion.
 3. _PDF_: Generation of PDF documents utilizing Playwright's PDF functionality.
 4. _Screenshot_: Full-page screenshot generation utilizing Playwright's screenshot functionality.
 
