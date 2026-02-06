@@ -36,8 +36,14 @@ process.on("uncaughtException", function (err) {
 });
 
 // Graceful shutdown
+let isShuttingDown = false;
 for (const signal of ["SIGTERM", "SIGINT"]) {
 	process.on(signal, async () => {
+		if (isShuttingDown) {
+			log.info(`Received ${signal} – Shutdown already in progress, ignoring`);
+			return;
+		}
+		isShuttingDown = true;
 		log.info(`Received ${signal} – Stopping Application`);
 		let exitCode = 0;
 		try {
