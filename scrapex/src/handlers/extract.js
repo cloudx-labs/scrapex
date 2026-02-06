@@ -137,11 +137,11 @@ async function extractPdf({ context, url, wait, params }) {
 		url,
 		wait,
 	});
-	result.page.emulateMedia({ media: "print" });
 	const pdfOptions = { ...(params.settings?.pdf?.options || { format: "Letter" }) };
 	delete pdfOptions.path;
 
 	log.debug(`PDF options: ${JSON.stringify(pdfOptions)}`);
+	await result.page.emulateMedia({ media: "print" });
 
 	const buffer = await TimeUtils.profile("Creating PDF", () => result.page.pdf(pdfOptions));
 	return buildResponse(result, {
