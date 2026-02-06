@@ -12,9 +12,7 @@ export function configureErrorHandler(app) {
 		if (res.headersSent) {
 			return next(err);
 		}
-		const isProduction = process.env.NODE_ENV === "production";
-		const responseMessage = isProduction ? "Internal server error" : err.message;
-		res.status(500).send(responseMessage);
+		res.status(500).send(err.message);
 		return;
 	});
 }
