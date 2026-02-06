@@ -15,7 +15,7 @@ Scrapex is a versatile scraping component designed to efficiently extract conten
 Scrapex supports the following output formats:
 
 1. _HTML_: Direct extraction of HTML content.
-2. _Markdown_: Conversion of HTML to Markdown using `html-to-md`.
+2. _Markdown_: Full-page HTML is converted to Markdown using [Turndown](https://github.com/mixmark-io/turndown). Script, style, noscript and template tags are removed via Turndown’s `remove()` before conversion.
 3. _PDF_: Generation of PDF documents utilizing Playwright's PDF functionality.
 4. _Screenshot_: Full-page screenshot generation utilizing Playwright's screenshot functionality.
 
@@ -35,7 +35,6 @@ Configure Scrapex using the following environment variables:
 The simplest way to run Scrapex is using Docker. Here's an example `docker-compose.yaml`:
 
 ```yaml
-version: "3"
 services:
     app:
         container_name: scrapex
@@ -89,7 +88,7 @@ All available values for `settings -> pdf -> options` can be found at: https://p
 
 #### Markdown (MD)
 
-All available values for `setting -> md -> options` can be found at: https://github.com/stonehank/html-to-md/blob/master/README-EN.md
+Full-page HTML is converted with [Turndown](https://github.com/mixmark-io/turndown). Before conversion, `script`, `style`, `noscript`, and `template` tags are removed. No MD-specific settings.
 
 #### Screenshot
 

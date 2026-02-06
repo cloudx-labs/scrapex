@@ -1,8 +1,9 @@
 import express from "express";
 import { createHttpTerminator } from "http-terminator";
 import { log } from "./logger.js";
-import * as Middlware from "./middleware.js";
+import * as Middleware from "./middleware.js";
 import * as Routes from "./routes.js";
+import { getBrowser, shutdownBrowser } from "./handlers/extract.js";
 
 // create an instance of express
 const app = express();
@@ -11,10 +12,21 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // set up all middlewares
-await Middlware.configure(app);
+await Middleware.configure(app);
 
 // configure api routes
 await Routes.configure(app);
+
+// register error-handling middleware after routes so it catches route errors
+Middleware.configureErrorHandler(app);
+
+// launch the shared browser instance before accepting requests
+try {
+	await getBrowser();
+} catch (err) {
+	log.error("Fatal: failed to launch browser", err);
+	process.exit(1);
+}
 
 // start the server
 const server = app.listen(PORT, () => {
@@ -25,14 +37,33 @@ const server = app.listen(PORT, () => {
 const httpTerminator = createHttpTerminator({ server });
 
 process.on("uncaughtException", function (err) {
-	log.error("UNCAUGHT EXCEPTION - keeping process alive:", err);
+	log.error("UNCAUGHT EXCEPTION:", err);
 });
 
 // Graceful shutdown
-process.on("SIGTERM", async () => {
-	log.info("Stopping Application");
-	await httpTerminator.terminate();
-
-	log.info("Exiting");
-	process.exit(0);
-});
+let isShuttingDown = false;
+for (const signal of ["SIGTERM", "SIGINT"]) {
+	process.on(signal, async () => {
+		if (isShuttingDown) {
+			log.info(`Received ${signal} – Shutdown already in progress, ignoring`);
+			return;
+		}
+		isShuttingDown = true;
+		log.info(`Received ${signal} – Stopping Application`);
+		let exitCode = 0;
+		try {
+			await httpTerminator.terminate();
+		} catch (err) {
+			log.error("Error terminating HTTP server:", err);
+			exitCode = 1;
+		}
+		try {
+			await shutdownBrowser();
+		} catch (err) {
+			log.error("Error shutting down browser:", err);
+			exitCode = 1;
+		}
+		log.info("Exiting");
+		process.exit(exitCode);
+	});
+}
