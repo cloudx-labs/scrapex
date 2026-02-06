@@ -17,10 +17,18 @@ const DEFAULT_USER_AGENT =
 
 export default async function handle(req, res) {
 	const params = req.body ?? {};
-	const url = params.url != null ? decodeURIComponent(String(params.url)) : null;
 	const outputType = params.outputType;
-	const wait = Number(params.wait) || DEFAULT_WAIT;
+	const parsedWait = params.wait != null ? Number(params.wait) : NaN;
+	const wait = Number.isNaN(parsedWait) ? DEFAULT_WAIT : parsedWait;
 	const userAgent = params.userAgent || DEFAULT_USER_AGENT;
+
+	let url;
+	try {
+		url = params.url != null ? decodeURIComponent(String(params.url)) : null;
+	} catch {
+		res.status(400).json({ message: "Malformed URL encoding" });
+		return;
+	}
 
 	if (!url) {
 		res.status(400).json({ message: "Missing or invalid url" });
