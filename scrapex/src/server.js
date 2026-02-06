@@ -36,10 +36,20 @@ process.on("uncaughtException", function (err) {
 for (const signal of ["SIGTERM", "SIGINT"]) {
 	process.on(signal, async () => {
 		log.info(`Received ${signal} – Stopping Application`);
-		await httpTerminator.terminate();
-		await shutdownBrowser();
-
+		let exitCode = 0;
+		try {
+			await httpTerminator.terminate();
+		} catch (err) {
+			log.error("Error terminating HTTP server:", err);
+			exitCode = 1;
+		}
+		try {
+			await shutdownBrowser();
+		} catch (err) {
+			log.error("Error shutting down browser:", err);
+			exitCode = 1;
+		}
 		log.info("Exiting");
-		process.exit(0);
+		process.exit(exitCode);
 	});
 }
