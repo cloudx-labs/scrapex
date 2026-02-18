@@ -14,7 +14,7 @@ import { getBrowser, shutdownBrowser } from "./extraction/browser.js";
 const app = express();
 
 /** @type {number} */
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 await Middleware.configure(app);
 await Routes.configure(app);

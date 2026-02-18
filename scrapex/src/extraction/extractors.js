@@ -63,7 +63,7 @@ export async function extractMarkdown({ url, wait, userAgent, mode }) {
  * @param {ExtractorParams} options
  * @returns {Promise<ExtractionResult>} Content is base64-encoded.
  */
-export async function extractPdf({ url, wait, userAgent, params }) {
+export async function extractPdf({ url, wait, userAgent, params = {} }) {
 	return browserExtract({ url, wait, userAgent }, async ({ page }) => {
 		const pdfOptions = { ...(params.settings?.pdf?.options || { format: "Letter" }) };
 		delete pdfOptions.path;
@@ -87,7 +87,7 @@ export async function extractPdf({ url, wait, userAgent, params }) {
  * @param {ExtractorParams} options
  * @returns {Promise<ExtractionResult>} Content is base64-encoded.
  */
-export async function extractScreenshot({ url, wait, userAgent, params }) {
+export async function extractScreenshot({ url, wait, userAgent, params = {} }) {
 	return browserExtract({ url, wait, userAgent }, async ({ page }) => {
 		const screenshotOptions = { ...(params.settings?.screenshot?.options || {}) };
 		delete screenshotOptions.path;
