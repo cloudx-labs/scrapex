@@ -65,6 +65,9 @@ export async function browserExtract({ url, wait, userAgent }, callback) {
 		const { page, response } = await TimeUtils.profile("Opening Page", async () => {
 			const page = await context.newPage();
 			const response = await page.goto(url);
+			if (!response) {
+				throw new Error(`Navigation to ${url} returned no response`);
+			}
 			await page.waitForLoadState("domcontentloaded");
 			return { page, response };
 		});
