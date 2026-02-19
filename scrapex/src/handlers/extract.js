@@ -1,8 +1,18 @@
 import { log } from "../logger.js";
 import * as TimeUtils from "../timeUtils.js";
-import { chromium } from "playwright";
-import TurndownService from "turndown";
+import {
+	extractHtml,
+	extractMarkdown,
+	extractPdf,
+	extractScreenshot,
+} from "../extraction/extractors.js";
 
+/** @typedef {import("../extraction/extractors.js").ExtractorParams} ExtractorParams */
+
+/**
+ * Maps `outputType` values from the request to their extraction functions.
+ * @type {Map<string, (params: ExtractorParams) => Promise<import("../extraction/strategies.js").ExtractionResult>>}
+ */
 const extractionHandlers = new Map([
 	["html", extractHtml],
 	["md", extractMarkdown],
@@ -10,18 +20,32 @@ const extractionHandlers = new Map([
 	["screenshot", extractScreenshot],
 ]);
 
-const DEFAULT_WAIT = process.env.DEFAULT_WAIT || 0;
-const DEFAULT_USER_AGENT =
-	process.env.DEFAULT_USER_AGENT ||
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+/** @type {Set<string>} Output types that support fetch mode. */
+const FETCH_SUPPORTED = new Set(["html", "md"]);
 
+/** @type {Set<string>} Valid extraction mode values. */
+const VALID_MODES = new Set(["browser", "fetch"]);
+
+/** @type {number} Default milliseconds to wait after page load (browser mode). */
+const DEFAULT_WAIT = process.env.DEFAULT_WAIT || 0;
+
+/**
+ * Express route handler for `POST /extract`. Validates the request payload,
+ * resolves extraction parameters, and delegates to the appropriate extractor.
+ *
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ * @returns {Promise<void>}
+ */
 export default async function handle(req, res) {
 	const params = req.body ?? {};
 	const outputType = params.outputType;
 	const parsedWait = params.wait != null ? Number(params.wait) : NaN;
 	const wait = Number.isNaN(parsedWait) ? DEFAULT_WAIT : parsedWait;
-	const userAgent = params.userAgent || DEFAULT_USER_AGENT;
+	const userAgent = params.userAgent;
+	const mode = params.mode || "browser";
 
+	/** @type {string | null} */
 	let url;
 	try {
 		url = params.url != null ? decodeURIComponent(String(params.url)) : null;
@@ -40,24 +64,23 @@ export default async function handle(req, res) {
 		});
 		return;
 	}
+	if (!VALID_MODES.has(mode)) {
+		res.status(400).json({ message: `Unknown mode "${mode}"` });
+		return;
+	}
+	if (mode === "fetch" && !FETCH_SUPPORTED.has(outputType)) {
+		res.status(400).json({
+			message: `Fetch mode only supports: ${[...FETCH_SUPPORTED].join(", ")}`,
+		});
+		return;
+	}
 
-	log.info(`Extracting "${outputType}" from "${url}"`);
+	log.info(`Extracting "${outputType}" (mode: ${mode}) from "${url}"`);
 	log.debug(JSON.stringify(params));
 
-	let browser;
-	let context;
 	try {
-		browser = await getBrowser();
-		context = await getNewContext(browser, userAgent);
-
-		const parameters = {
-			context,
-			url,
-			wait,
-			params,
-		};
 		const extractionResult = await TimeUtils.profile("Extraction", () =>
-			extractionHandlers.get(outputType)(parameters)
+			extractionHandlers.get(outputType)({ url, wait, userAgent, mode, params })
 		);
 		res.json(extractionResult);
 	} catch (err) {
@@ -65,181 +88,5 @@ export default async function handle(req, res) {
 		res.status(500).json({
 			message: err.message,
 		});
-	} finally {
-		await tearDown(browser, context);
-	}
-}
-
-async function loadPage({ context, url, wait }) {
-	const result = await TimeUtils.profile("Opening Page", async () => {
-		const page = await context.newPage();
-		const response = await page.goto(url);
-		await page.waitForLoadState("domcontentloaded");
-		return { page, response };
-	});
-	await TimeUtils.delay(wait);
-	return result;
-}
-
-async function buildResponse({ page, response }, { contentType, content }) {
-	return {
-		source: {
-			ok: response.ok(),
-			status: response.status(),
-			url: page.url(),
-			headers: await response.headers(),
-		},
-		output: {
-			contentType: contentType,
-			content: content,
-		},
-	};
-}
-
-async function extractHtml({ context, url, wait }) {
-	const result = await loadPage({
-		context,
-		url,
-		wait,
-	});
-	return await buildResponse(result, {
-		contentType: "text/html",
-		content: await result.page.content(),
-	});
-}
-
-const JUNK_TAGS = ["script", "style", "noscript", "template"];
-
-async function extractMarkdown({ context, url, wait }) {
-	const result = await loadPage({
-		context,
-		url,
-		wait,
-	});
-
-	const htmlContent = await result.page.content();
-
-	const markdownContent = await TimeUtils.profile("Converting to MD", () => {
-		const service = new TurndownService();
-		service.remove(JUNK_TAGS);
-		return service.turndown(htmlContent);
-	});
-
-	return await buildResponse(result, {
-		contentType: "text/markdown",
-		content: markdownContent,
-	});
-}
-
-async function extractPdf({ context, url, wait, params }) {
-	const result = await loadPage({
-		context,
-		url,
-		wait,
-	});
-	const pdfOptions = { ...(params.settings?.pdf?.options || { format: "Letter" }) };
-	delete pdfOptions.path;
-
-	log.debug(`PDF options: ${JSON.stringify(pdfOptions)}`);
-	await result.page.emulateMedia({ media: "print" });
-
-	const buffer = await TimeUtils.profile("Creating PDF", () => result.page.pdf(pdfOptions));
-	return buildResponse(result, {
-		contentType: "application/pdf",
-		content: buffer.toString("base64"),
-	});
-}
-
-async function extractScreenshot({ context, url, wait, params }) {
-	const result = await loadPage({
-		context,
-		url,
-		wait,
-	});
-
-	const screenshotOptions = { ...(params.settings?.screenshot?.options || {}) };
-	delete screenshotOptions.path;
-
-	// Playwright expects `quality` only for jpeg; if caller sets it without `type`, default to jpeg.
-	if (screenshotOptions.quality && !screenshotOptions.type) {
-		screenshotOptions.type = "jpeg";
-	}
-
-	const mergedOptions = {
-		fullPage: true, // full-page screenshot by default
-		...screenshotOptions,
-	};
-
-	log.debug(`Screenshot options: ${JSON.stringify(mergedOptions)}`);
-
-	const buffer = await TimeUtils.profile("Creating Screenshot", () => result.page.screenshot(mergedOptions));
-	const contentType = mergedOptions.type === "jpeg" ? "image/jpeg" : "image/png";
-
-	return buildResponse(result, {
-		contentType,
-		content: buffer.toString("base64"),
-	});
-}
-
-let browserInstance = null;
-let browserLaunchPromise = null;
-
-export async function getBrowser() {
-	if (browserInstance) return browserInstance;
-
-	if (!browserLaunchPromise) {
-		browserLaunchPromise = TimeUtils.profile("Launching Browser", () =>
-			chromium.launch({
-				headless: true,
-			})
-		)
-			.then((browser) => {
-				browserInstance = browser;
-				browser.on("disconnected", () => {
-					if (browserInstance === browser) {
-						browserInstance = null;
-						browserLaunchPromise = null;
-					}
-				});
-				return browser;
-			})
-			.catch((err) => {
-				browserLaunchPromise = null;
-				throw err;
-			});
-	}
-
-	return browserLaunchPromise;
-}
-
-async function getNewContext(browser, userAgent) {
-	const context = await TimeUtils.profile("New Context", () =>
-		browser.newContext({
-			userAgent: userAgent,
-		})
-	);
-	return context;
-}
-
-async function tearDown(_browser, context) {
-	await TimeUtils.profile("Closing Context", async () => {
-		if (context) await context.close();
-	});
-}
-
-export async function shutdownBrowser() {
-	if (browserLaunchPromise && !browserInstance) {
-		log.info("Browser launch in progress – waiting before shutdown");
-		try {
-			await browserLaunchPromise;
-		} catch {
-			// launch failed; nothing to close
-		}
-	}
-	if (browserInstance) {
-		log.info("Closing shared browser instance");
-		await browserInstance.close();
-		browserInstance = null;
-		browserLaunchPromise = null;
 	}
 }

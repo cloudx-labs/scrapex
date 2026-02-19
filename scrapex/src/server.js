@@ -1,26 +1,25 @@
+/**
+ * Application entry point. Sets up Express with middleware and routes, launches
+ * the shared Playwright browser, starts the HTTP server, and registers graceful
+ * shutdown handlers for SIGTERM/SIGINT.
+ */
+
 import express from "express";
 import { createHttpTerminator } from "http-terminator";
 import { log } from "./logger.js";
 import * as Middleware from "./middleware.js";
 import * as Routes from "./routes.js";
-import { getBrowser, shutdownBrowser } from "./handlers/extract.js";
+import { getBrowser, shutdownBrowser } from "./extraction/browser.js";
 
-// create an instance of express
 const app = express();
 
-// define a port
-const PORT = process.env.PORT || 3000;
+/** @type {number} */
+const PORT = Number(process.env.PORT) || 3000;
 
-// set up all middlewares
 await Middleware.configure(app);
-
-// configure api routes
 await Routes.configure(app);
-
-// register error-handling middleware after routes so it catches route errors
 Middleware.configureErrorHandler(app);
 
-// launch the shared browser instance before accepting requests
 try {
 	await getBrowser();
 } catch (err) {
@@ -28,19 +27,16 @@ try {
 	process.exit(1);
 }
 
-// start the server
 const server = app.listen(PORT, () => {
 	log.info(`Server is running on port ${PORT}`);
 });
 
-// set up the httpTerminator which gracefully disconnects clients during shutdown
 const httpTerminator = createHttpTerminator({ server });
 
 process.on("uncaughtException", function (err) {
 	log.error("UNCAUGHT EXCEPTION:", err);
 });
 
-// Graceful shutdown
 let isShuttingDown = false;
 for (const signal of ["SIGTERM", "SIGINT"]) {
 	process.on(signal, async () => {
