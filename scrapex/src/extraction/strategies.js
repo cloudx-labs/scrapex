@@ -36,6 +36,7 @@ const DEFAULT_USER_AGENT =
  * @typedef {Object} BrowserCallbackContext
  * @property {import("playwright").Page} page - The Playwright page instance.
  * @property {import("playwright").Response} response - The Playwright navigation response.
+ * @property {string} html - The HTML content of the page.
  */
 
 /**
@@ -73,7 +74,9 @@ export async function browserExtract({ url, wait, userAgent }, callback) {
 		});
 		await TimeUtils.delay(wait);
 
-		const output = await callback({ page, response });
+		const html = await page.content();
+
+		const output = await callback({ page, response, html });
 
 		return {
 			source: {

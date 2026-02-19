@@ -27,9 +27,9 @@ const JUNK_TAGS = ["script", "style", "noscript", "template"];
  */
 export async function extractHtml({ url, wait, userAgent, mode }) {
 	const strategy = mode === "fetch" ? fetchExtract : browserExtract;
-	return strategy({ url, wait, userAgent }, async ({ page, html }) => ({
+	return strategy({ url, wait, userAgent }, async ({ html }) => ({
 		contentType: "text/html",
-		content: html ?? (await page.content()),
+		content: html,
 	}));
 }
 
@@ -42,12 +42,11 @@ export async function extractHtml({ url, wait, userAgent, mode }) {
  */
 export async function extractMarkdown({ url, wait, userAgent, mode }) {
 	const strategy = mode === "fetch" ? fetchExtract : browserExtract;
-	return strategy({ url, wait, userAgent }, async ({ page, html }) => {
-		const htmlContent = html ?? (await page.content());
+	return strategy({ url, wait, userAgent }, async ({ html }) => {
 		const markdownContent = await TimeUtils.profile("Converting to MD", () => {
 			const service = new TurndownService();
 			service.remove(JUNK_TAGS);
-			return service.turndown(htmlContent);
+			return service.turndown(html);
 		});
 		return {
 			contentType: "text/markdown",
